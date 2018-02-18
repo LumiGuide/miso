@@ -40,6 +40,9 @@ module Miso.Html.Internal (
   -- * Handling events
   , on
   , onWithOptions
+  -- * Internal events
+  , onCreated
+  , onDestroyed
   ) where
 
 import           Data.Aeson (Value(..), ToJSON(..))
@@ -219,6 +222,24 @@ onWithOptions
    -> (r -> action)
    -> Attribute action
 onWithOptions _ _ _ _ = E ()
+
+-- | @onCreated toAction@ is an event that gets called after the actual DOM
+-- element is created. The @toAction@ is given a @sink :: action -> IO ()@ and
+-- the DOM element that was created. It can use those to embed third party
+-- widgets in the element. The @sink@ can be used to create callbacks for
+-- event listeners, and DOM element to attach the widget to.
+onCreated
+  :: ((action -> IO ()) -> object -> action)
+  -> Attribute action
+onCreated _ = E ()
+
+-- | @onDestroyed toAction@ is an event that gets called after the DOM element
+-- is removed from the DOM. The @toAction@ is given the DOM element that was
+-- removed from the DOM tree.
+onDestroyed
+  :: (object -> action)
+  -> Attribute action
+onDestroyed _ = E ()
 
 -- | Constructs CSS for a DOM Element
 --
