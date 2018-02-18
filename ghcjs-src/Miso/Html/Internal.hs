@@ -31,6 +31,7 @@ module Miso.Html.Internal (
   , View   (..)
   , ToView (..)
   , Attribute (..)
+  , DOMNode (..)
   -- * Smart `View` constructors
   , node
   , text
@@ -110,6 +111,10 @@ set k v obj = toJSVal v >>= \x -> setProp k x obj
 instance ToJSVal DecodeTarget where
   toJSVal (DecodeTarget xs) = toJSVal xs
   toJSVal (DecodeTargets xs) = toJSVal xs
+
+-- | Represents a DOM node
+newtype DOMNode = DOMNode Object
+instance IsJSVal DOMNode
 
 -- | Create a new @VNode@.
 --
@@ -277,24 +282,24 @@ onWithOptions options eventName Decoder{..} toAction =
 -- widgets in the element. The @sink@ can be used to create callbacks for
 -- event listeners, and DOM element to attach the widget to.
 onCreated
-  :: ((action -> IO ()) -> Object -> action)
+  :: ((action -> IO ()) -> DOMNode -> action)
   -> Attribute action
 onCreated toAction =
   Attribute $ \sink n -> do
     onCreatedArr <- SomeJSArray <$> getProp "onCreated" n
-    cb <- jsval <$> asyncCallback1 (sink . toAction sink . Object)
+    cb <- jsval <$> asyncCallback1 (sink . toAction sink . DOMNode .Object)
     JSArray.push cb onCreatedArr
 
 -- | @onDestroyed toAction@ is an event that gets called after the DOM element
 -- is removed from the DOM. The @toAction@ is given the DOM element that was
 -- removed from the DOM tree.
 onDestroyed
-  :: (Object -> action)
+  :: (DOMNode -> action)
   -> Attribute action
 onDestroyed toAction =
   Attribute $ \sink n -> do
     onDestroyedArr <- SomeJSArray <$> getProp "onDestroyed" n
-    cb <- jsval <$> asyncCallback1 (sink . toAction . Object)
+    cb <- jsval <$> asyncCallback1 (sink . toAction . DOMNode . Object)
     JSArray.push cb onDestroyedArr
 
 -- | @style_ attrs@ is an attribute that will set the @style@

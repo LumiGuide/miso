@@ -25,6 +25,7 @@ module Miso.Html.Internal (
   , View   (..)
   , ToView (..)
   , Attribute (..)
+  , DOMNode (..)
   -- * Smart `View` constructors
   , node
   , text
@@ -195,6 +196,9 @@ data Attribute action
 newtype AllowDrop = AllowDrop Bool
   deriving (Show, Eq)
 
+-- | Stub representing a DOM node
+newtype DOMNode = DOMNode ()
+
 -- | Constructs a property on a `VNode`, used to set fields on a DOM Node
 prop :: ToJSON a => MisoString -> a -> Attribute action
 prop k v = P k (toJSON v)
@@ -229,7 +233,7 @@ onWithOptions _ _ _ _ = E ()
 -- widgets in the element. The @sink@ can be used to create callbacks for
 -- event listeners, and DOM element to attach the widget to.
 onCreated
-  :: ((action -> IO ()) -> object -> action)
+  :: ((action -> IO ()) -> DOMNode -> action)
   -> Attribute action
 onCreated _ = E ()
 
@@ -237,7 +241,7 @@ onCreated _ = E ()
 -- is removed from the DOM. The @toAction@ is given the DOM element that was
 -- removed from the DOM tree.
 onDestroyed
-  :: (object -> action)
+  :: (DOMNode -> action)
   -> Attribute action
 onDestroyed _ = E ()
 

@@ -161,7 +161,7 @@ function destroyNode (obj, parent) {
     callDestroyedRecursive(obj);
 }
 
-function callDestroyedRecursive(obj) {
+function callDestroyedRecursive (obj) {
   for (var i in obj.onDestroyed){
     obj.onDestroyed[i](obj.domRef);
     h$release(obj.onDestroyed[i]);
@@ -171,7 +171,7 @@ function callDestroyedRecursive(obj) {
     callDestroyedRecursive(obj.children[i]);
 }
 
-function callCreated(obj) {
+function callCreated (obj) {
   for (var i in obj.onCreated) {
     obj.onCreated[i](obj.domRef);
     h$release(obj.onCreated[i]);
