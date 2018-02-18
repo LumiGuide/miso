@@ -46,6 +46,9 @@ module Miso.Html.Internal (
   -- * Handling events
   , on
   , onWithOptions
+  -- * Internal events
+  , onCreated
+  , onDestroyed
   -- * Events
   , defaultEvents
   -- * Subscription type
@@ -63,9 +66,10 @@ import qualified Data.Text                  as T
 import           GHCJS.Foreign.Callback
 import           GHCJS.Marshal
 import           GHCJS.Types
-import           JavaScript.Array.Internal  (fromList)
 import           JavaScript.Object
 import           JavaScript.Object.Internal (Object (Object))
+import qualified JavaScript.Array as JSArray
+import           JavaScript.Array.Internal (SomeJSArray(..))
 import           Servant.API
 
 import           Miso.Event.Decoder
@@ -123,9 +127,13 @@ node ns tag key attrs kids = View $ \sink -> do
   cssObj <- jsval <$> create
   propsObj <- jsval <$> create
   eventObj <- jsval <$> create
+  onCreatedArr <- jsval <$> JSArray.create
+  onDestroyedArr <- jsval <$> JSArray.create
   set "css" cssObj vnode
   set "props" propsObj vnode
   set "events" eventObj vnode
+  set "onCreated" onCreatedArr vnode
+  set "onDestroyed" onDestroyedArr vnode
   set "type" ("vnode" :: JSString) vnode
   set "ns" ns vnode
   set "tag" tag vnode
@@ -139,7 +147,7 @@ node ns tag key attrs kids = View $ \sink -> do
           attr sink vnode
 
       setKids sink =
-        jsval . fromList <$>
+        jsval . JSArray.fromList <$>
           fmap (jsval . getTree) <$>
             traverse (flip runView sink) kids
 
@@ -262,6 +270,32 @@ onWithOptions options eventName Decoder{..} toAction =
    setProp "runEvent" cb eventHandlerObject
    setProp "options" jsOptions eventHandlerObject
    setProp eventName eo (Object eventObj)
+
+-- | @onCreated toAction@ is an event that gets called after the actual DOM
+-- element is created. The @toAction@ is given a @sink :: action -> IO ()@ and
+-- the DOM element that was created. It can use those to embed third party
+-- widgets in the element. The @sink@ can be used to create callbacks for
+-- event listeners, and DOM element to attach the widget to.
+onCreated
+  :: ((action -> IO ()) -> Object -> action)
+  -> Attribute action
+onCreated toAction =
+  Attribute $ \sink n -> do
+    onCreatedArr <- SomeJSArray <$> getProp "onCreated" n
+    cb <- jsval <$> asyncCallback1 (sink . toAction sink . Object)
+    JSArray.push cb onCreatedArr
+
+-- | @onDestroyed toAction@ is an event that gets called after the DOM element
+-- is removed from the DOM. The @toAction@ is given the DOM element that was
+-- removed from the DOM tree.
+onDestroyed
+  :: (Object -> action)
+  -> Attribute action
+onDestroyed toAction =
+  Attribute $ \sink n -> do
+    onDestroyedArr <- SomeJSArray <$> getProp "onDestroyed" n
+    cb <- jsval <$> asyncCallback1 (sink . toAction . Object)
+    JSArray.push cb onDestroyedArr
 
 -- | @style_ attrs@ is an attribute that will set the @style@
 -- attribute of the associated DOM node to @attrs@.

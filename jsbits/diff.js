@@ -2,7 +2,7 @@
 function diff (currentObj, newObj, parent) {
   if (!currentObj && !newObj) return;
   else if (!currentObj && newObj) createNode (newObj, parent);
-  else if (currentObj && !newObj) parent.removeChild (currentObj.domRef);
+  else if (currentObj && !newObj) destroyNode(currentObj, parent);
   else {
     if (currentObj.type === "vtext") {
       if (newObj.type === "vnode") replaceTextWithElement (currentObj, newObj, parent);
@@ -22,11 +22,15 @@ function diffTextNodes (c, n) {
 function replaceElementWithText (c, n, parent) {
   n.domRef = document.createTextNode (n.text);
   parent.replaceChild (n.domRef, c.domRef);
+  for (var i in c.onDestroyed)
+      c.onDestroyed[i](c.domRef);
 }
 
 function replaceTextWithElement (c, n, parent) {
   createElement (n);
   parent.replaceChild (n.domRef, c.domRef);
+  for (var i in n.onCreated)
+      n.onCreated[i](n.domRef);
 }
 
 function populate (c, n) {
@@ -52,6 +56,10 @@ function diffVNodes (c, n, parent) {
   } else {
     createElement(n);
     parent.replaceChild (n.domRef, c.domRef);
+    for (var i in c.onDestroyed)
+      c.onDestroyed[i](c.domRef);
+    for (var i in n.onCreated)
+      n.onCreated[i](n.domRef);
   }
 }
 
@@ -143,12 +151,21 @@ function createNode (obj, parent) {
     if (obj.type === "vnode") createElement(obj);
     else obj.domRef = document.createTextNode(obj.text);
     parent.appendChild(obj.domRef);
+    for (var i in obj.onCreated){
+      obj.onCreated[i](obj.domRef);
+    }
 }
 
 function createNodeDontAppend (obj) {
   if (obj.type === "vnode") createElement(obj);
   else obj.domRef = document.createTextNode(obj.text);
   return obj;
+}
+
+function destroyNode (obj, parent) {
+    parent.removeChild (obj.domRef);
+    for (var i in obj.onDestroyed)
+      obj.onDestroyed[i](obj.domRef);
 }
 
 /* Child reconciliation algorithm, inspired by kivi and Bobril */
