@@ -47,9 +47,8 @@ module Miso.Html.Internal (
   -- * Handling events
   , on
   , onWithOptions
-  -- * Internal events
-  , onCreated
-  , onDestroyed
+  -- * Life cycle events
+  , lifeCycleEvents
   -- * Events
   , defaultEvents
   -- * Subscription type
@@ -64,13 +63,13 @@ import           Data.Monoid
 import           Data.Proxy
 import           Data.String                (IsString(..))
 import qualified Data.Text                  as T
+import           GHCJS.Foreign              (jsNull)
 import           GHCJS.Foreign.Callback
 import           GHCJS.Marshal
 import           GHCJS.Types
 import           JavaScript.Object
 import           JavaScript.Object.Internal (Object (Object))
 import qualified JavaScript.Array as JSArray
-import           JavaScript.Array.Internal (SomeJSArray(..))
 import           Servant.API
 
 import           Miso.Event.Decoder
@@ -113,7 +112,7 @@ instance ToJSVal DecodeTarget where
   toJSVal (DecodeTargets xs) = toJSVal xs
 
 -- | Represents a DOM node
-newtype DOMNode = DOMNode Object
+newtype DOMNode = DOMNode JSVal
 instance IsJSVal DOMNode
 
 -- | Create a new @VNode@.
@@ -132,13 +131,10 @@ node ns tag key attrs kids = View $ \sink -> do
   cssObj <- jsval <$> create
   propsObj <- jsval <$> create
   eventObj <- jsval <$> create
-  onCreatedArr <- jsval <$> JSArray.create
-  onDestroyedArr <- jsval <$> JSArray.create
   set "css" cssObj vnode
   set "props" propsObj vnode
   set "events" eventObj vnode
-  set "onCreated" onCreatedArr vnode
-  set "onDestroyed" onDestroyedArr vnode
+  set "lifeCycleId" jsNull vnode
   set "type" ("vnode" :: JSString) vnode
   set "ns" ns vnode
   set "tag" tag vnode
@@ -276,31 +272,32 @@ onWithOptions options eventName Decoder{..} toAction =
    setProp "options" jsOptions eventHandlerObject
    setProp eventName eo (Object eventObj)
 
--- | @onCreated toAction@ is an event that gets called after the actual DOM
--- element is created. The @toAction@ is given a @sink :: action -> IO ()@ and
--- the DOM element that was created. It can use those to embed third party
--- widgets in the element. The @sink@ can be used to create callbacks for
--- event listeners, and DOM element to attach the widget to.
-onCreated
-  :: ((action -> IO ()) -> DOMNode -> action)
+-- | @lifeCycleEvents lifeCycleId onCreated onDestroyed@ registers two events
+-- (@onCreated@ and @onDestroyed@) that get called when the DOM element is
+-- respectively created and destroyed. @lifeCycleId@ should be unique across
+-- the application, as it helps the diffing algorithm distinguish elements
+-- with life cycle events. Both actions are given a reference to the DOM
+-- object.
+-- @onCreated@ also gets a sink function, which can be used to dispatch
+-- actions to be fed back to the @update@ function, much like in @Sub@s.
+lifeCycleEvents
+  :: MisoString
+     -- ^ Unique identifier, when this differs across two diffs, destroyed
+     -- (and possibly created) will get called.
+  -> ((action -> IO ()) -> DOMNode -> action)
+     -- ^ On created
+  -> (DOMNode -> action)
+     -- ^ On destroyed
   -> Attribute action
-onCreated toAction =
+lifeCycleEvents lifeCycleId onCreated onDestroyed =
   Attribute $ \sink n -> do
-    onCreatedArr <- SomeJSArray <$> getProp "onCreated" n
-    cb <- jsval <$> asyncCallback1 (sink . toAction sink . DOMNode .Object)
-    JSArray.push cb onCreatedArr
-
--- | @onDestroyed toAction@ is an event that gets called after the DOM element
--- is removed from the DOM. The @toAction@ is given the DOM element that was
--- removed from the DOM tree.
-onDestroyed
-  :: (DOMNode -> action)
-  -> Attribute action
-onDestroyed toAction =
-  Attribute $ \sink n -> do
-    onDestroyedArr <- SomeJSArray <$> getProp "onDestroyed" n
-    cb <- jsval <$> asyncCallback1 (sink . toAction . DOMNode . Object)
-    JSArray.push cb onDestroyedArr
+    setProp "lifeCycleId" (jsval lifeCycleId) n
+    onCreatedCb <- jsval <$>
+      asyncCallback1 (sink . onCreated sink . DOMNode)
+    onDestroyedCb <- jsval <$>
+      asyncCallback1 (sink . onDestroyed . DOMNode)
+    setProp "onCreated" onCreatedCb n
+    setProp "onDestroyed" onDestroyedCb n
 
 -- | @style_ attrs@ is an attribute that will set the @style@
 -- attribute of the associated DOM node to @attrs@.

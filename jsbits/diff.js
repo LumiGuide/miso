@@ -50,6 +50,10 @@ function populate (c, n) {
 function diffVNodes (c, n, parent) {
   if (c.tag === n.tag) {
     n.domRef = c.domRef;
+    if (c.lifeCycleId != n.lifeCycleId) {
+      callDestroyed(c);
+      callCreated(n);
+    }
     populate (c, n);
   } else {
     createElement(n);
@@ -161,20 +165,23 @@ function destroyNode (obj, parent) {
     callDestroyedRecursive(obj);
 }
 
-function callDestroyedRecursive (obj) {
-  for (var i in obj.onDestroyed){
-    obj.onDestroyed[i](obj.domRef);
-    h$release(obj.onDestroyed[i]);
+function callDestroyed (obj) {
+  if ("onDestroyed" in obj) {
+    obj.onDestroyed(obj.domRef);
+    h$release(obj.onDestroyed);
   }
+}
 
+function callDestroyedRecursive (obj) {
+  callDestroyed(obj);
   for (var i in obj.children)
     callDestroyedRecursive(obj.children[i]);
 }
 
 function callCreated (obj) {
-  for (var i in obj.onCreated) {
-    obj.onCreated[i](obj.domRef);
-    h$release(obj.onCreated[i]);
+  if ("onCreated" in obj) {
+    obj.onCreated(obj.domRef);
+    h$release(obj.onCreated);
   }
 }
 
