@@ -42,6 +42,8 @@ module Miso.Html.Internal (
   , on
   , onWithOptions
   -- * Life Cycle events
+  , LifeCycleKey
+  , createLifeCycleKey
   , lifeCycleEvents
   ) where
 
@@ -52,6 +54,7 @@ import           Data.Proxy
 import           Data.String (IsString(..))
 import qualified Data.Text   as T
 import qualified Data.Vector as V
+import           Data.Unique
 import qualified Lucid       as L
 import qualified Lucid.Base  as L
 import           Servant.API
@@ -198,6 +201,16 @@ newtype AllowDrop = AllowDrop Bool
 -- | Stub representing a DOM node
 newtype DOMNode = DOMNode ()
 
+-- | Stub representing a life cycle key, used clientside by Miso to
+-- distinguish between elements with life cycle events.
+newtype LifeCycleKey = LifeCycleKey Unique
+  deriving (Eq)
+
+-- | Creates a unique @LifeCycleKey@ that helps Miso distinguish elements with
+-- life cycle events.
+createLifeCycleKey :: IO LifeCycleKey
+createLifeCycleKey = LifeCycleKey <$> newUnique
+
 -- | Constructs a property on a `VNode`, used to set fields on a DOM Node
 prop :: ToJSON a => MisoString -> a -> Attribute action
 prop k v = P k (toJSON v)
@@ -227,7 +240,7 @@ onWithOptions
 onWithOptions _ _ _ _ = E ()
 
 lifeCycleEvents
-  :: MisoString
+  :: LifeCycleKey
      -- ^ Unique identifier, when this differs across two diffs, destroyed
      -- (and possibly created) will get called.
   -> ((action -> IO ()) -> DOMNode -> action)

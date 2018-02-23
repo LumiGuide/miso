@@ -48,6 +48,8 @@ module Miso.Html.Internal (
   , on
   , onWithOptions
   -- * Life cycle events
+  , LifeCycleKey
+  , createLifeCycleKey
   , lifeCycleEvents
   -- * Events
   , defaultEvents
@@ -114,6 +116,27 @@ instance ToJSVal DecodeTarget where
 -- | Represents a DOM node
 newtype DOMNode = DOMNode JSVal
 instance IsJSVal DOMNode
+
+-- | The @LifeCycleKey@ is a unique identifier used by the @lifeCycleEvents@
+-- function. It helps Miso distinguish elements with life cycle events. The
+-- only way to get one of these is through @createLifeCycleKey@, which ensures
+-- that the @LifeCycleKey@ is indeed unique.
+newtype LifeCycleKey = LifeCycleKey JSVal
+instance IsJSVal LifeCycleKey
+
+-- | Creates a unique @LifeCycleKey@ that helps Miso distinguish elements with
+-- life cycle events.
+createLifeCycleKey :: IO LifeCycleKey
+createLifeCycleKey = (LifeCycleKey . jsval) <$> create
+
+-- | Javascript's === equality is what defines the behaviour of the
+-- @LifeCycleKey@ regarding uniqueness. In Haskell world, the Eq instance must
+-- behave exactly the same.
+instance Eq LifeCycleKey where
+  (==) = lifeCycleKeyEquality
+
+foreign import javascript unsafe "$r = $1 === $2;"
+  lifeCycleKeyEquality :: LifeCycleKey -> LifeCycleKey -> Bool
 
 -- | Create a new @VNode@.
 --
@@ -274,24 +297,22 @@ onWithOptions options eventName Decoder{..} toAction =
 
 -- | @lifeCycleEvents lifeCycleId onCreated onDestroyed@ registers two events
 -- (@onCreated@ and @onDestroyed@) that get called when the DOM element is
--- respectively created and destroyed. @lifeCycleId@ should be unique across
--- the application, as it helps the diffing algorithm distinguish elements
--- with life cycle events. Both actions are given a reference to the DOM
--- object.
--- @onCreated@ also gets a sink function, which can be used to dispatch
--- actions to be fed back to the @update@ function, much like in @Sub@s.
+-- respectively created and destroyed. Both actions are given a reference to
+-- the DOM object. The @onCreated@ action also gets a sink function, which can
+-- be used to dispatch actions to be fed back to the @update@ function, much
+-- like in @Sub@s.
 lifeCycleEvents
-  :: MisoString
-     -- ^ Unique identifier, when this differs across two diffs, destroyed
-     -- (and possibly created) will get called.
+  :: LifeCycleKey
+     -- ^ Uniquely identifies a node, when this differs across two diffs,
+     -- destroyed (and possibly created) will get called.
   -> ((action -> IO ()) -> DOMNode -> action)
      -- ^ On created
   -> (DOMNode -> action)
      -- ^ On destroyed
   -> Attribute action
-lifeCycleEvents lifeCycleId onCreated onDestroyed =
+lifeCycleEvents lifeCycleKey onCreated onDestroyed =
   Attribute $ \sink n -> do
-    setProp "lifeCycleId" (jsval lifeCycleId) n
+    setProp "lifeCycleKey" (jsval lifeCycleKey) n
     onCreatedCb <- jsval <$>
       asyncCallback1 (sink . onCreated sink . DOMNode)
     onDestroyedCb <- jsval <$>

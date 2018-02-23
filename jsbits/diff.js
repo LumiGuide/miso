@@ -50,7 +50,7 @@ function populate (c, n) {
 function diffVNodes (c, n, parent) {
   if (c.tag === n.tag) {
     n.domRef = c.domRef;
-    if (c.lifeCycleId != n.lifeCycleId) {
+    if (c.lifeCycleKey !== n.lifeCycleKey) {
       callDestroyed(c);
       callCreated(n);
     }
