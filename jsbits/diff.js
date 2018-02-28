@@ -48,12 +48,8 @@ function populate (c, n) {
 }
 
 function diffVNodes (c, n, parent) {
-  if (c.tag === n.tag) {
+  if (c.tag === n.tag && n.key === c.key) {
     n.domRef = c.domRef;
-    if (c.lifeCycleKey !== n.lifeCycleKey) {
-      callDestroyed(c);
-      callCreated(n);
-    }
     populate (c, n);
   } else {
     createElement(n);
@@ -166,10 +162,8 @@ function destroyNode (obj, parent) {
 }
 
 function callDestroyed (obj) {
-  if ("onDestroyed" in obj) {
-    obj.onDestroyed(obj.domRef);
-    h$release(obj.onDestroyed);
-  }
+  for (var i in obj.onDestroyed)
+    obj.onDestroyed[i](obj.domRef);
 }
 
 function callDestroyedRecursive (obj) {
@@ -179,10 +173,8 @@ function callDestroyedRecursive (obj) {
 }
 
 function callCreated (obj) {
-  if ("onCreated" in obj) {
-    obj.onCreated(obj.domRef);
-    h$release(obj.onCreated);
-  }
+  for (var i in obj.onCreated)
+    obj.onCreated[i](obj.domRef);
 }
 
 /* Child reconciliation algorithm, inspired by kivi and Bobril */

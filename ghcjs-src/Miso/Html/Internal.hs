@@ -31,7 +31,6 @@ module Miso.Html.Internal (
   , View   (..)
   , ToView (..)
   , Attribute (..)
-  , DOMNode (..)
   -- * Smart `View` constructors
   , node
   , text
@@ -48,9 +47,8 @@ module Miso.Html.Internal (
   , on
   , onWithOptions
   -- * Life cycle events
-  , LifeCycleKey
-  , createLifeCycleKey
-  , lifeCycleEvents
+  , onCreated
+  , onDestroyed
   -- * Events
   , defaultEvents
   -- * Subscription type
@@ -65,13 +63,13 @@ import           Data.Monoid
 import           Data.Proxy
 import           Data.String                (IsString(..))
 import qualified Data.Text                  as T
-import           GHCJS.Foreign              (jsNull)
 import           GHCJS.Foreign.Callback
 import           GHCJS.Marshal
 import           GHCJS.Types
 import           JavaScript.Object
 import           JavaScript.Object.Internal (Object (Object))
 import qualified JavaScript.Array as JSArray
+import           JavaScript.Array.Internal (SomeJSArray(..))
 import           Servant.API
 
 import           Miso.Event.Decoder
@@ -113,31 +111,6 @@ instance ToJSVal DecodeTarget where
   toJSVal (DecodeTarget xs) = toJSVal xs
   toJSVal (DecodeTargets xs) = toJSVal xs
 
--- | Represents a DOM node
-newtype DOMNode = DOMNode JSVal
-instance IsJSVal DOMNode
-
--- | The @LifeCycleKey@ is a unique identifier used by the @lifeCycleEvents@
--- function. It helps Miso distinguish elements with life cycle events. The
--- only way to get one of these is through @createLifeCycleKey@, which ensures
--- that the @LifeCycleKey@ is indeed unique.
-newtype LifeCycleKey = LifeCycleKey JSVal
-instance IsJSVal LifeCycleKey
-
--- | Creates a unique @LifeCycleKey@ that helps Miso distinguish elements with
--- life cycle events.
-createLifeCycleKey :: IO LifeCycleKey
-createLifeCycleKey = (LifeCycleKey . jsval) <$> create
-
--- | Javascript's === equality is what defines the behaviour of the
--- @LifeCycleKey@ regarding uniqueness. In Haskell world, the Eq instance must
--- behave exactly the same.
-instance Eq LifeCycleKey where
-  (==) = lifeCycleKeyEquality
-
-foreign import javascript unsafe "$r = $1 === $2;"
-  lifeCycleKeyEquality :: LifeCycleKey -> LifeCycleKey -> Bool
-
 -- | Create a new @VNode@.
 --
 -- @node ns tag key attrs children@ creates a new node with tag @tag@
@@ -154,10 +127,13 @@ node ns tag key attrs kids = View $ \sink -> do
   cssObj <- jsval <$> create
   propsObj <- jsval <$> create
   eventObj <- jsval <$> create
+  onCreatedArr <- jsval <$> JSArray.create
+  onDestroyedArr <- jsval <$> JSArray.create
   set "css" cssObj vnode
   set "props" propsObj vnode
   set "events" eventObj vnode
-  set "lifeCycleId" jsNull vnode
+  set "onCreated" onCreatedArr vnode
+  set "onDestroyed" onDestroyedArr vnode
   set "type" ("vnode" :: JSString) vnode
   set "ns" ns vnode
   set "tag" tag vnode
@@ -295,30 +271,24 @@ onWithOptions options eventName Decoder{..} toAction =
    setProp "options" jsOptions eventHandlerObject
    setProp eventName eo (Object eventObj)
 
--- | @lifeCycleEvents lifeCycleId onCreated onDestroyed@ registers two events
--- (@onCreated@ and @onDestroyed@) that get called when the DOM element is
--- respectively created and destroyed. Both actions are given a reference to
--- the DOM object. The @onCreated@ action also gets a sink function, which can
--- be used to dispatch actions to be fed back to the @update@ function, much
--- like in @Sub@s.
-lifeCycleEvents
-  :: LifeCycleKey
-     -- ^ Uniquely identifies a node, when this differs across two diffs,
-     -- destroyed (and possibly created) will get called.
-  -> ((action -> IO ()) -> DOMNode -> action)
-     -- ^ On created
-  -> (DOMNode -> action)
-     -- ^ On destroyed
-  -> Attribute action
-lifeCycleEvents lifeCycleKey onCreated onDestroyed =
+-- | @onCreated action@ is an event that gets called after the actual DOM
+-- element is created.
+onCreated :: action -> Attribute action
+onCreated action =
   Attribute $ \sink n -> do
-    setProp "lifeCycleKey" (jsval lifeCycleKey) n
-    onCreatedCb <- jsval <$>
-      asyncCallback1 (sink . onCreated sink . DOMNode)
-    onDestroyedCb <- jsval <$>
-      asyncCallback1 (sink . onDestroyed . DOMNode)
-    setProp "onCreated" onCreatedCb n
-    setProp "onDestroyed" onDestroyedCb n
+    onCreatedArr <- SomeJSArray <$> getProp "onCreated" n
+    cb <- jsval <$> asyncCallback (sink action)
+    JSArray.push cb onCreatedArr
+
+-- | @onDestroyed action@ is an event that gets called after the DOM element
+-- is removed from the DOM. The @action@ is given the DOM element that was
+-- removed from the DOM tree.
+onDestroyed :: action -> Attribute action
+onDestroyed action =
+  Attribute $ \sink n -> do
+    onDestroyedArr <- SomeJSArray <$> getProp "onDestroyed" n
+    cb <- jsval <$> asyncCallback (sink action)
+    JSArray.push cb onDestroyedArr
 
 -- | @style_ attrs@ is an attribute that will set the @style@
 -- attribute of the associated DOM node to @attrs@.

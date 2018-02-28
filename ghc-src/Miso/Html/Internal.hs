@@ -25,7 +25,6 @@ module Miso.Html.Internal (
   , View   (..)
   , ToView (..)
   , Attribute (..)
-  , DOMNode (..)
   -- * Smart `View` constructors
   , node
   , text
@@ -41,10 +40,9 @@ module Miso.Html.Internal (
   -- * Handling events
   , on
   , onWithOptions
-  -- * Life Cycle events
-  , LifeCycleKey
-  , createLifeCycleKey
-  , lifeCycleEvents
+  -- * Life cycle events
+  , onCreated
+  , onDestroyed
   ) where
 
 import           Data.Aeson (Value(..), ToJSON(..))
@@ -54,7 +52,6 @@ import           Data.Proxy
 import           Data.String (IsString(..))
 import qualified Data.Text   as T
 import qualified Data.Vector as V
-import           Data.Unique
 import qualified Lucid       as L
 import qualified Lucid.Base  as L
 import           Servant.API
@@ -198,19 +195,6 @@ data Attribute action
 newtype AllowDrop = AllowDrop Bool
   deriving (Show, Eq)
 
--- | Stub representing a DOM node
-newtype DOMNode = DOMNode ()
-
--- | Stub representing a life cycle key, used clientside by Miso to
--- distinguish between elements with life cycle events.
-newtype LifeCycleKey = LifeCycleKey Unique
-  deriving (Eq)
-
--- | Creates a unique @LifeCycleKey@ that helps Miso distinguish elements with
--- life cycle events.
-createLifeCycleKey :: IO LifeCycleKey
-createLifeCycleKey = LifeCycleKey <$> newUnique
-
 -- | Constructs a property on a `VNode`, used to set fields on a DOM Node
 prop :: ToJSON a => MisoString -> a -> Attribute action
 prop k v = P k (toJSON v)
@@ -239,16 +223,16 @@ onWithOptions
    -> Attribute action
 onWithOptions _ _ _ _ = E ()
 
-lifeCycleEvents
-  :: LifeCycleKey
-     -- ^ Unique identifier, when this differs across two diffs, destroyed
-     -- (and possibly created) will get called.
-  -> ((action -> IO ()) -> DOMNode -> action)
-     -- ^ On created
-  -> (DOMNode -> action)
-     -- On destroyed
-  -> Attribute action
-lifeCycleEvents _ _ _ = E ()
+-- | @onCreated action@ is an event that gets called after the actual DOM
+-- element is created.
+onCreated :: action -> Attribute action
+onCreated _ = E ()
+
+-- | @onDestroyed action@ is an event that gets called after the DOM element
+-- is removed from the DOM. The @action@ is given the DOM element that was
+-- removed from the DOM tree.
+onDestroyed :: action -> Attribute action
+onDestroyed _ = E ()
 
 -- | Constructs CSS for a DOM Element
 --
