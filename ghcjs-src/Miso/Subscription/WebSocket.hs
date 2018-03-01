@@ -43,7 +43,7 @@ import Prelude                hiding (map)
 import System.IO.Unsafe
 
 import Miso.FFI
-import Miso.Html.Internal     ( Sub )
+import Miso.Effect ( Sub )
 import Miso.String
 
 -- | WebSocket connection messages

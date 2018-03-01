@@ -15,6 +15,7 @@ module Miso.Types
   , fromTransition
   , toTransition
   , scheduleIO
+  , scheduleSub
   ) where
 
 import           Control.Monad.Trans.Class (lift)
@@ -72,7 +73,7 @@ data App model action = App
 --   , ...
 --   }
 -- @
-type Transition action model = StateT model (Writer [IO action])
+type Transition action model = StateT model (Writer [Sub action model])
 
 -- | Convert a @Transition@ computation to a function that can be given to 'update'.
 fromTransition
@@ -85,12 +86,16 @@ toTransition
     :: (model -> Effect action model) -- ^ model 'update' function
     -> Transition action model ()
 toTransition f = StateT $ \s ->
-                   let Effect s' ios = f s
-                   in WriterT $ pure (((), s'), ios)
+                   let Effect s' subscriptions = f s
+                   in WriterT $ pure (((), s'), subscriptions)
 
 -- | Schedule a single IO action for later execution.
 --
 -- Note that multiple IO action can be scheduled using
 -- @Control.Monad.Writer.Class.tell@ from the @mtl@ library.
 scheduleIO :: IO action -> Transition action model ()
-scheduleIO ioAction = lift $ tell [ ioAction ]
+scheduleIO io = scheduleSub $ \_getModel sink -> io >>= sink
+
+-- | Register a subscription.
+scheduleSub :: Sub action model -> Transition action model ()
+scheduleSub sub = lift $ tell [ sub ]

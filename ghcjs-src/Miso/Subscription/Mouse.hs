@@ -17,7 +17,7 @@ import JavaScript.Object
 import JavaScript.Object.Internal
 
 import Miso.FFI
-import Miso.Html.Internal ( Sub )
+import Miso.Effect ( Sub )
 
 -- | Captures mouse coordinates as they occur and writes them to
 -- an event sink
@@ -28,4 +28,3 @@ mouseSub f _ = \sink -> do
       Just x <- fromJSVal =<< getProp "clientX" (Object mouseEvent)
       Just y <- fromJSVal =<< getProp "clientY" (Object mouseEvent)
       sink $ f (x,y)
-

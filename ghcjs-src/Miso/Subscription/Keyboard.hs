@@ -30,7 +30,7 @@ import           JavaScript.Object
 import           JavaScript.Object.Internal
 
 import           Miso.FFI
-import           Miso.Html.Internal ( Sub )
+import           Miso.Effect ( Sub )
 
 -- | type for arrow keys currently pressed
 --  37 left arrow  ( x = -1 )
@@ -97,4 +97,3 @@ keyboardSub f _ sink = do
              let !new = S.delete key keys
              in (new, new)
           sink (f newKeys)
-

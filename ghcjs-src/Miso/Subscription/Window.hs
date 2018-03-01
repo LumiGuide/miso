@@ -17,7 +17,7 @@ import GHCJS.Marshal
 import JavaScript.Object
 import JavaScript.Object.Internal
 import Miso.FFI
-import Miso.Html.Internal ( Sub )
+import Miso.Effect ( Sub )
 
 -- | Captures window coordinates changes as they occur and writes them to
 -- an event sink
@@ -30,4 +30,3 @@ windowSub f _ = \sink -> do
       Just w <- fromJSVal =<< getProp "innerWidth" (Object target)
       Just h <- fromJSVal =<< getProp "innerHeight" (Object target)
       sink $ f (h, w)
-

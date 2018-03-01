@@ -21,7 +21,7 @@ import Data.Aeson
 import GHCJS.Foreign.Callback
 import GHCJS.Types
 import Miso.FFI
-import Miso.Html.Internal     ( Sub )
+import Miso.Effect ( Sub )
 import Miso.String
 
 -- | Server-sent events Subscription
@@ -66,4 +66,3 @@ foreign import javascript unsafe "$1.onclose = $2;"
 -- | Test URL
 -- http://sapid.sourceforge.net/ssetest/webkit.events.php
 -- var source = new EventSource("demo_sse.php");
-

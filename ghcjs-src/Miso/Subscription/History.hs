@@ -27,7 +27,7 @@ import Control.Concurrent
 import Control.Monad
 import GHCJS.Foreign.Callback
 import Miso.Concurrent
-import Miso.Html.Internal     ( Sub )
+import Miso.Effect ( Sub )
 import Miso.String
 import Network.URI            hiding (path)
 import System.IO.Unsafe

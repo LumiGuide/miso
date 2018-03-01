@@ -51,7 +51,7 @@ common
   :: Eq model
   => App model action
   -> model
-  -> ((action -> IO ()) -> IO (IORef VTree))
+  -> (Sink action -> IO (IORef VTree))
   -> IO b
 common App {..} m getView = do
   -- init Notifier
@@ -63,9 +63,10 @@ common App {..} m getView = do
   let writeEvent a = void . forkIO $ do
         atomicModifyIORef' actionsRef $ \as -> (as |> a, ())
         notify
+      getModel = readIORef modelRef
   -- init Subs
   forM_ subs $ \sub ->
-    sub (readIORef modelRef) writeEvent
+    sub getModel writeEvent
   -- Hack to get around `BlockedIndefinitelyOnMVar` exception
   -- that occurs when no event handlers are present on a template
   -- and `notify` is no longer in scope
@@ -84,7 +85,7 @@ common App {..} m getView = do
     actions <- atomicModifyIORef' actionsRef $ \actions -> (S.empty, actions)
     (shouldDraw, effects) <- atomicModifyIORef' modelRef $! \oldModel ->
           let (newModel, effects) =
-                foldl' (foldEffects writeEvent update)
+                foldl' (foldEffects getModel writeEvent update)
                   (oldModel, pure ()) actions
           in (newModel, (oldModel /= newModel, effects))
     effects
@@ -123,13 +124,14 @@ startApp app@App {..} =
 
 -- | Helper
 foldEffects
-  :: (action -> IO ())
+  :: IO model
+  -> Sink action
   -> (action -> model -> Effect action model)
   -> (model, IO ()) -> action -> (model, IO ())
-foldEffects sink update = \(!model, !as) action ->
+foldEffects getModel sink update = \(!model, !as) action ->
   case update action model of
-    Effect newModel effs -> (newModel, newAs)
+    Effect newModel subscriptions -> (newModel, newAs)
       where
         newAs = as >> do
-          forM_ effs $ \eff ->
-            void $ forkIO (sink =<< eff)
+          forM_ subscriptions $ \sub ->
+            void $ forkIO (sub getModel sink)
