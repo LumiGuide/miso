@@ -132,4 +132,4 @@ foldEffects sink update = \(!model, !as) action ->
       where
         newAs = as >> do
           forM_ effs $ \eff ->
-            void $ forkIO (sink =<< eff)
+            void $ forkIO $ eff sink

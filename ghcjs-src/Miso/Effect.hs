@@ -29,7 +29,7 @@ import Miso.Effect.DOM
 -- is run in a new thread so there is no risk of accidentally
 -- blocking the application.
 data Effect action model
-  = Effect model [IO action]
+  = Effect model [(action -> IO ()) -> IO ()]
 
 instance Functor (Effect action) where
   fmap f (Effect m acts) = Effect (f m) acts
@@ -45,7 +45,7 @@ instance Monad (Effect action) where
       Effect m' acts' -> Effect m' (acts ++ acts')
 
 instance Bifunctor Effect where
-  bimap f g (Effect m acts) = Effect (g m) (map (fmap f) acts)
+  bimap f g (Effect m acts) = Effect (g m) (map (\h -> \sink -> h (sink . f)) acts)
 
 -- | Smart constructor for an 'Effect' with no actions.
 noEff :: model -> Effect action model
@@ -53,7 +53,7 @@ noEff m = Effect m []
 
 -- | Smart constructor for an 'Effect' with exactly one action.
 (<#) :: model -> IO action -> Effect action model
-(<#) m a = Effect m [a]
+(<#) m a = Effect m [\sink -> a >>= sink]
 
 -- | `Effect` smart constructor, flipped
 (#>) :: IO action -> model -> Effect action model
