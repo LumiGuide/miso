@@ -17,12 +17,12 @@ import GHCJS.Marshal
 import JavaScript.Object
 import JavaScript.Object.Internal
 import Miso.FFI
-import Miso.Html.Internal ( Sub )
+import Miso.Types
 
 -- | Captures window coordinates changes as they occur and writes them to
 -- an event sink
-windowSub :: ((Int, Int) -> action) -> Sub action model
-windowSub f _ = \sink -> do
+windowSub :: ((Int, Int) -> action) -> Transition action model ()
+windowSub f = scheduleIOWithSink $ \sink -> do
   sink . f =<< (,) <$> windowInnerHeight <*> windowInnerWidth
   windowAddEventListener "resize" =<< do
     asyncCallback1 $ \windowEvent -> do

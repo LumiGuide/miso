@@ -15,7 +15,8 @@ data Model = Model { modelUri :: URI,  modelMsg :: String }
   deriving (Show, Eq)
 
 data Action
-  = ServerMsg String
+  = Init
+  | ServerMsg String
   | NoOp
   | ChangeURI URI
   | HandleURI URI

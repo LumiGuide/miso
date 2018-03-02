@@ -63,9 +63,6 @@ common App {..} m getView = do
   let writeEvent a = void . forkIO $ do
         atomicModifyIORef' actionsRef $ \as -> (as |> a, ())
         notify
-  -- init Subs
-  forM_ subs $ \sub ->
-    sub (readIORef modelRef) writeEvent
   -- Hack to get around `BlockedIndefinitelyOnMVar` exception
   -- that occurs when no event handlers are present on a template
   -- and `notify` is no longer in scope

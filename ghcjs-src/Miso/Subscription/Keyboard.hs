@@ -30,7 +30,7 @@ import           JavaScript.Object
 import           JavaScript.Object.Internal
 
 import           Miso.FFI
-import           Miso.Html.Internal ( Sub )
+import           Miso.Types
 
 -- | type for arrow keys currently pressed
 --  37 left arrow  ( x = -1 )
@@ -62,39 +62,40 @@ toArrows (up, down, left, right) set =
     check = any (`S.member` set)
 
 -- | Maps `Arrows` onto a Keyboard subscription
-arrowsSub :: (Arrows -> action) -> Sub action model
+arrowsSub :: (Arrows -> action) -> Transition action model ()
 arrowsSub = directionSub ([38], [40], [37], [39])
 
 -- | Maps `WASD` onto a Keyboard subscription for directions
-wasdSub :: (Arrows -> action) -> Sub action model
+wasdSub :: (Arrows -> action) -> Transition action model ()
 wasdSub = directionSub ([87], [83], [65], [68])
 
 -- | Maps a specified list of keys to directions (up, down, left, right)
 directionSub :: ([Int], [Int], [Int], [Int])
              -> (Arrows -> action)
-             -> Sub action model
+             -> Transition action model ()
 directionSub dirs = keyboardSub . (. toArrows dirs)
 
 -- | Returns subscription for Keyboard
-keyboardSub :: (Set Int -> action) -> Sub action model
-keyboardSub f _ sink = do
-  keySetRef <- newIORef mempty
-  windowAddEventListener "keyup" =<< keyUpCallback keySetRef
-  windowAddEventListener "keydown" =<< keyDownCallback keySetRef
-    where
-      keyDownCallback keySetRef = do
-        asyncCallback1 $ \keyDownEvent -> do
-          Just key <- fromJSVal =<< getProp "keyCode" (Object keyDownEvent)
-          newKeys <- atomicModifyIORef' keySetRef $ \keys ->
-             let !new = S.insert key keys
-             in (new, new)
-          sink (f newKeys)
+keyboardSub :: (Set Int -> action) -> Transition action model ()
+keyboardSub f = scheduleIOWithSink setup
+  where
+    setup sink = do
+      keySetRef <- newIORef mempty
+      windowAddEventListener "keyup" =<< keyUpCallback keySetRef
+      windowAddEventListener "keydown" =<< keyDownCallback keySetRef
+        where
+          keyDownCallback keySetRef = do
+            asyncCallback1 $ \keyDownEvent -> do
+              Just key <- fromJSVal =<< getProp "keyCode" (Object keyDownEvent)
+              newKeys <- atomicModifyIORef' keySetRef $ \keys ->
+                 let !new = S.insert key keys
+                 in (new, new)
+              sink (f newKeys)
 
-      keyUpCallback keySetRef = do
-        asyncCallback1 $ \keyUpEvent -> do
-          Just key <- fromJSVal =<< getProp "keyCode" (Object keyUpEvent)
-          newKeys <- atomicModifyIORef' keySetRef $ \keys ->
-             let !new = S.delete key keys
-             in (new, new)
-          sink (f newKeys)
-
+          keyUpCallback keySetRef = do
+            asyncCallback1 $ \keyUpEvent -> do
+              Just key <- fromJSVal =<< getProp "keyCode" (Object keyUpEvent)
+              newKeys <- atomicModifyIORef' keySetRef $ \keys ->
+                 let !new = S.delete key keys
+                 in (new, new)
+              sink (f newKeys)

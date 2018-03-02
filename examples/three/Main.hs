@@ -64,7 +64,6 @@ main = do
     where
       events = defaultEvents
       view   = viewModel
-      subs   = []
 
 viewModel :: Double -> View action
 viewModel _ = div_ [] [

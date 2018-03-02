@@ -32,7 +32,6 @@ main = do
                      , height_ "300"
                      ] []
     model  = (0.0, 0.0)
-    subs   = []
     events = defaultEvents
     mountPoint = Nothing -- default to body
 

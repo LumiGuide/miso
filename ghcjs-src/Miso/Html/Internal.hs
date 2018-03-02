@@ -48,8 +48,6 @@ module Miso.Html.Internal (
   , onWithOptions
   -- * Events
   , defaultEvents
-  -- * Subscription type
-  , Sub
   ) where
 
 import           Control.Monad
@@ -73,14 +71,6 @@ import           Miso.Event.Types
 import           Miso.String
 import           Miso.Effect (Sink)
 import           Miso.FFI
-
--- | Type synonym for constructing event subscriptions.
---
--- The first argument passed to a subscription provides a way to
--- access the current value of the model (without blocking). The 'Sink'
--- callback is used to dispatch actions which are then fed back to the
--- @update@ function.
-type Sub action model = IO model -> Sink action -> IO ()
 
 -- | Virtual DOM implemented as a JavaScript `Object`.
 --   Used for diffing, patching and event delegation.

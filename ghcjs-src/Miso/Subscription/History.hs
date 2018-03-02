@@ -27,8 +27,8 @@ import Control.Concurrent
 import Control.Monad
 import GHCJS.Foreign.Callback
 import Miso.Concurrent
-import Miso.Html.Internal     ( Sub )
 import Miso.String
+import Miso.Types
 import Network.URI            hiding (path)
 import System.IO.Unsafe
 
@@ -83,8 +83,8 @@ chan :: Notify
 chan = unsafePerformIO newNotify
 
 -- | Subscription for `popState` events, from the History API
-uriSub :: (URI -> action) -> Sub action model
-uriSub = \f _ sink -> do
+uriSub :: (URI -> action) -> Transition action model ()
+uriSub f = scheduleIOWithSink $ \sink -> do
   void.forkIO.forever $ do
     wait chan >> do
       sink =<< f <$> getURI

@@ -31,7 +31,8 @@ instance HasURI Model where
 
 -- | Action
 data Action
-  = HandleURI URI
+  = Init
+  | HandleURI URI
   | ChangeURI URI
   | NoOp
   deriving (Show, Eq)
@@ -40,16 +41,16 @@ data Action
 main :: IO ()
 main = do
   currentURI <- getCurrentURI
-  startApp App { model = Model currentURI, initialAction = NoOp, ..}
+  startApp App { model = Model currentURI, initialAction = Init, ..}
   where
     update = updateModel
     events = defaultEvents
-    subs   = [ uriSub HandleURI ]
     view   = viewModel
     mountPoint = Nothing
 
 -- | Update your model
 updateModel :: Action -> Model -> Effect Action Model
+updateModel Init m = fromTransition (uriSub HandleURI) m
 updateModel (HandleURI u) m = m { uri = u } <# do
   pure NoOp
 updateModel (ChangeURI u) m = m <# do

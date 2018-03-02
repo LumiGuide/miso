@@ -31,7 +31,8 @@ data Model = Model
 
 -- | Event Actions
 data Action
-  = Alert
+  = Init
+  | Alert
   | ChangeURI URI
   | HandleURI URI
   | ToggleNavMenu

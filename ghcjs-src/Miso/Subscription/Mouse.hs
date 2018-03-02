@@ -17,12 +17,12 @@ import JavaScript.Object
 import JavaScript.Object.Internal
 
 import Miso.FFI
-import Miso.Html.Internal ( Sub )
+import Miso.Types
 
 -- | Captures mouse coordinates as they occur and writes them to
 -- an event sink
-mouseSub :: ((Int,Int) -> action) -> Sub action model
-mouseSub f _ = \sink -> do
+mouseSub :: ((Int,Int) -> action) -> Transition action model ()
+mouseSub f = scheduleIOWithSink $ \sink -> do
   windowAddEventListener "mousemove" =<< do
     asyncCallback1 $ \mouseEvent -> do
       Just x <- fromJSVal =<< getProp "clientX" (Object mouseEvent)

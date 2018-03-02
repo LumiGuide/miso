@@ -40,7 +40,6 @@ main = do
     where
       update = updateModel
       events = defaultEvents
-      subs   = []
       view   = viewModel
 
 -- | Update your model
@@ -142,4 +141,3 @@ getGitHubAPIInfo = do
                   , reqWithCredentials = False
                   , reqData = NoData
                   }
-

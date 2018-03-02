@@ -95,7 +95,6 @@ main = startApp App { initialAction = NoOp, ..}
     update = updateModel
     view   = viewModel
     events = defaultEvents
-    subs   = []
     mountPoint = Nothing
 
 viewModel :: Model -> View Action

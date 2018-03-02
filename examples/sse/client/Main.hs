@@ -18,7 +18,7 @@ main :: IO ()
 main = do
   currentURI <- getCurrentURI
   miso
-    App {initialAction = NoOp, model = Model currentURI "No event received", ..}
+    App {initialAction = Init, model = Model currentURI "No event received", ..}
   where
     update = updateModel
     view
@@ -26,7 +26,6 @@ main = do
      =
       either (const the404) id . runRoute (Proxy :: Proxy ClientRoutes) handlers
     events = defaultEvents
-    subs = [sseSub "/sse" handleSseMsg, uriSub HandleURI]
     mountPoint = Nothing
 
 handleSseMsg :: SSE String -> Action
@@ -35,6 +34,9 @@ handleSseMsg SSEClose = ServerMsg "SSE connection closed"
 handleSseMsg SSEError = ServerMsg "SSE error"
 
 updateModel :: Action -> Model -> Effect Action Model
+updateModel Init m = flip fromTransition m $ do
+                       sseSub "/sse" handleSseMsg
+                       uriSub HandleURI
 updateModel (ServerMsg msg) m = noEff (m {modelMsg = "Event received: " ++ msg})
 updateModel (HandleURI u) m = m {modelUri = u} <# pure NoOp
 updateModel (ChangeURI u) m = m <# (pushURI u >> pure NoOp)

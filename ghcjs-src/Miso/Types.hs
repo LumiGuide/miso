@@ -35,8 +35,6 @@ data App model action = App
   --   See the 'Transition' monad for succinctly expressing model transitions.
   , view :: model -> View action
   -- ^ Function to draw `View`
-  , subs :: [ Sub action model ]
-  -- ^ List of subscriptions to run during application lifetime
   , events :: M.Map MisoString Bool
   -- ^ List of delegated events that the body element will listen for
   , initialAction :: action

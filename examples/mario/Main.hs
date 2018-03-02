@@ -13,7 +13,8 @@ import           Miso
 import           Miso.String
 
 data Action
-  = GetArrows !Arrows
+  = Init
+  | GetArrows !Arrows
   | Time !Double
   | WindowCoords !(Int,Int)
   | NoOp
@@ -25,14 +26,11 @@ main :: IO ()
 main = do
     time <- now
     let m = mario { time = time }
-    startApp App { model = m, initialAction = NoOp, ..}
+    startApp App { model = m, initialAction = Init, ..}
   where
     update = updateMario
     view   = display
     events = defaultEvents
-    subs   = [ arrowsSub GetArrows
-             , windowSub WindowCoords
-             ]
     mountPoint = Nothing
 
 data Model = Model
@@ -66,6 +64,9 @@ mario = Model
     }
 
 updateMario :: Action -> Model -> Effect Action Model
+updateMario Init m = flip fromTransition m $ do
+                       arrowsSub GetArrows
+                       windowSub WindowCoords
 updateMario NoOp m = step m
 updateMario (GetArrows arrs) m = noEff newModel
   where

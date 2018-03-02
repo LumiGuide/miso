@@ -21,12 +21,12 @@ import Data.Aeson
 import GHCJS.Foreign.Callback
 import GHCJS.Types
 import Miso.FFI
-import Miso.Html.Internal     ( Sub )
 import Miso.String
+import Miso.Types
 
 -- | Server-sent events Subscription
-sseSub :: FromJSON msg => MisoString -> (SSE msg -> action) -> Sub action model
-sseSub url f _ = \sink -> do
+sseSub :: FromJSON msg => MisoString -> (SSE msg -> action) -> Transition action model ()
+sseSub url f = scheduleIOWithSink $ \sink -> do
   es <- newEventSource url
   onMessage es =<< do
     asyncCallback1 $ \val -> do

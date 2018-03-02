@@ -38,7 +38,6 @@ main = do
       mountPoint = Nothing
       update = updateModel
       events = defaultEvents
-      subs   = []
       view   = viewModel
 
 -- | Update your model

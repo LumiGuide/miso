@@ -85,7 +85,6 @@ main = startApp App { initialAction = NoOp, ..}
     view       = viewModel
     events     = defaultEvents
     mountPoint = Nothing
-    subs       = []
 
 updateModel :: Msg -> Model -> Effect Msg Model
 updateModel NoOp m = noEff m

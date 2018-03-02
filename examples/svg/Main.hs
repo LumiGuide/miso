@@ -17,20 +17,20 @@ trunc = truncate *** truncate
 main :: IO ()
 main = startApp App {..}
   where
-    initialAction = Id
+    initialAction = Init
     model         = emptyModel
     update        = updateModel
     view          = viewModel
     events        = M.insert (pack "mousemove") False $
                     M.insert (pack "touchstart") False $
                     M.insert (pack "touchmove") False defaultEvents
-    subs          = [ mouseSub HandleMouse ]
     mountPoint    = Nothing
 
 emptyModel :: Model
 emptyModel = Model (0,0)
 
 updateModel :: Action -> Model -> Effect Action Model
+updateModel Init model = fromTransition (mouseSub HandleMouse) model
 updateModel (HandleTouch (TouchEvent touch)) model =
   model <# do
     putStrLn "Touch did move"
@@ -41,7 +41,8 @@ updateModel (HandleMouse newCoords) model =
 updateModel Id model = noEff model
 
 data Action
-  = HandleMouse (Int, Int)
+  = Init
+  | HandleMouse (Int, Int)
   | HandleTouch TouchEvent
   | Id
 

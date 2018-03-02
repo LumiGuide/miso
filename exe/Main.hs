@@ -15,7 +15,6 @@ main = startApp App { initialAction = SayHelloWorld, ..}
     view   = viewModel
     events = defaultEvents
     mountPoint = Nothing
-    subs   = []
 
 updateModel :: Action -> Model -> Effect Action Model
 updateModel AddOne m = noEff (m + 1)
@@ -37,4 +36,3 @@ viewModel x = div_ [] [
  , text $ ms (show x)
  , button_ [ onClick SubtractOne ] [ text "-" ]
  ]
-

@@ -43,8 +43,8 @@ import Prelude                hiding (map)
 import System.IO.Unsafe
 
 import Miso.FFI
-import Miso.Html.Internal     ( Sub )
 import Miso.String
+import Miso.Types
 
 -- | WebSocket connection messages
 data WebSocket action
@@ -70,41 +70,44 @@ websocketSub
   => URL
   -> Protocols
   -> (WebSocket m -> action)
-  -> Sub action model
-websocketSub (URL u) (Protocols ps) f getModel sink = do
-  socket <- createWebSocket u ps
-  writeIORef websocket (Just socket)
-  void . forkIO $ handleReconnect
-  onOpen socket =<< do
-    writeIORef closedCode Nothing
-    asyncCallback $ sink (f WebSocketOpen)
-  onMessage socket =<< do
-    asyncCallback1 $ \v -> do
-      d <- parse =<< getData v
-      sink $ f (WebSocketMessage d)
-  onClose socket =<< do
-    asyncCallback1 $ \e -> do
-      code <- codeToCloseCode <$> getCode e
-      writeIORef closedCode (Just code)
-      reason <- getReason e
-      clean <- wasClean e
-      sink $ f (WebSocketClose code clean reason)
-  onError socket =<< do
-    asyncCallback1 $ \v -> do
-      writeIORef closedCode Nothing
-      d <- parse =<< getData v
-      sink $ f (WebSocketError d)
+  -> Transition action model ()
+websocketSub (URL u) (Protocols ps) f =
+    scheduleIOWithSink setup
   where
-    handleReconnect = do
-      threadDelay (secs 3)
-      Just s <- readIORef websocket
-      status <- getSocketState' s
-      code <- readIORef closedCode
-      if status == 3
-        then do
-          unless (code == Just CLOSE_NORMAL) $
-            websocketSub (URL u) (Protocols ps) f getModel sink
-        else handleReconnect
+    setup sink = do
+        socket <- createWebSocket u ps
+        writeIORef websocket (Just socket)
+        void . forkIO $ handleReconnect
+        onOpen socket =<< do
+          writeIORef closedCode Nothing
+          asyncCallback $ sink (f WebSocketOpen)
+        onMessage socket =<< do
+          asyncCallback1 $ \v -> do
+            d <- parse =<< getData v
+            sink $ f (WebSocketMessage d)
+        onClose socket =<< do
+          asyncCallback1 $ \e -> do
+            code <- codeToCloseCode <$> getCode e
+            writeIORef closedCode (Just code)
+            reason <- getReason e
+            clean <- wasClean e
+            sink $ f (WebSocketClose code clean reason)
+        onError socket =<< do
+          asyncCallback1 $ \v -> do
+            writeIORef closedCode Nothing
+            d <- parse =<< getData v
+            sink $ f (WebSocketError d)
+      where
+        handleReconnect = do
+          threadDelay (secs 3)
+          Just s <- readIORef websocket
+          status <- getSocketState' s
+          code <- readIORef closedCode
+          if status == 3
+            then
+              unless (code == Just CLOSE_NORMAL) $
+                setup sink
+            else handleReconnect
 
 -- | Sends message to a websocket server
 send :: ToJSON a => a -> IO ()
